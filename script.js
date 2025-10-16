@@ -30,12 +30,6 @@ apiForm.addEventListener("submit", async (event) => {
 	).value;
 	const type = document.querySelector('select[name="trivia_type"]').value;
 
-	// Show form values
-	console.log("Number of Questions:", numQuestions);
-	console.log("Category:", category);
-	console.log("Difficulty:", difficulty);
-	console.log("Type:", type);
-
 	// Create and start the quiz
 	const quiz = new Quiz(Date.now(), numQuestions, category, difficulty, type);
 	await quiz.init();
@@ -57,6 +51,7 @@ class Question {
 		this.difficulty = difficulty;
 		this.question_text = this.decodeHTMLEntities(question);
 		this.answer = correctAnswer;
+		this.user_answer;
 		this.incorrectAnswers = incorrectAnswers;
 	}
 
@@ -64,27 +59,20 @@ class Question {
 		let el = ``;
 		if (this.type === "boolean") {
 			el = `
-				<fieldset>
-					<label>
-						<input type="radio" value="True">
-					</label>
-					<label>
-						<input type="radio" value="False">
-					</label>
-				</fieldset>`;
+				<label><input type="radio" name="multi-choice-opt" value="True">True</label>
+				<label><input type="radio" name="multi-choice-opt" value="False">False</label>`;
 		}
 		if (this.type === "multiple") {
 			const randomNum = Math.floor(Math.random() * 4) + 1;
 			let allOpts = [...this.incorrectAnswers];
 			allOpts.splice(randomNum, 0, this.answer);
-			// const allOpts.splice(randomNum, 0, this.answer);
-			console.log(this.incorrectAnswers);
-			console.log(this.answer);
-			console.log(allOpts);
 			for (let i = 0; i < 4; i++) {
-				el += `<label><input type="radio" value=${allOpts[i]}></label>`;
+				el += `
+					<label>
+						<input type="radio" name="multi-choice-opt" value="${allOpts[i]}">
+						<span>${allOpts[i]}</span>
+					</label>`;
 			}
-			el = `<fieldset>${el}</fieldset`;
 		}
 		return el;
 	};
@@ -121,39 +109,50 @@ class Quiz {
 	getCurrentQuestion = () => {
 		return this.questionsList[this.currentQuestionIndex - 1];
 	};
+
+	initButtonEvents() {
+		const prevNextBtn = document.querySelector(".buttons");
+		const nextBtn = document.querySelector(".next-button");
+		const prevBtn = document.querySelector(".prev-button");
+		console.log(this.currentQuestionIndex);
+		prevNextBtn.addEventListener("click", (e) => {
+			if (
+				e.target == nextBtn &&
+				this.currentQuestionIndex < this.numQuestions
+			) {
+				this.currentQuestionIndex++;
+				this.displayQuestion();
+			}
+			if (e.target == prevBtn && this.currentQuestionIndex > 1) {
+				this.currentQuestionIndex--;
+				this.displayQuestion();
+			}
+		});
+	}
+
+	displayQuestion() {
+		const questionNum = document.querySelector(".question-number");
+		const questionTextHeading = document.querySelector(".question-text");
+		const answerOptions = document.querySelector(".ans-opts-container");
+		const currentQuestion = this.getCurrentQuestion();
+
+		questionNum.textContent = `Question: ${this.currentQuestionIndex}`;
+		questionTextHeading.textContent = currentQuestion.question_text;
+		const ansOptsHtml = currentQuestion.generateAnswerOpts();
+		answerOptions.innerHTML = ansOptsHtml;
+	}
 }
 
 function startQuiz(quiz) {
+	// Display the originally hidden elements
 	document.querySelectorAll(".hidden").forEach((el) => {
 		el.classList.remove("hidden");
 	});
+	// Hide the api form
 	document.querySelector(".api-form").classList.add("hidden");
-	displayQuestion(quiz);
-
+	quiz.displayQuestion();
+	quiz.initButtonEvents();
 	// setupNavButtonListeners(quiz);
-	const prevNextBtn = document.querySelector(".buttons");
-	prevNextBtn.addEventListener("click", function (event) {
-		if (event.target.classList[0] == "next-button") {
-			quiz.currentQuestionIndex++;
-		}
-		if (event.target.classList[0] == "prev-button") {
-			quiz.currentQuestionIndex--;
-		}
-		displayQuestion(quiz);
-	});
-}
-
-function displayQuestion(quiz) {
-	const questionNum = document.querySelector(".question-number");
-	const questionTextHeading = document.querySelector(".question-text");
-	const answerOptions = document.querySelector(".ans-opts");
-	const currentQuestion = quiz.getCurrentQuestion();
-	console.log(quiz);
-
-	questionNum.textContent = `Question: ${quiz.currentQuestionIndex}`;
-	questionTextHeading.textContent = currentQuestion.question_text;
-	const ansOptsHtml = currentQuestion.generateAnswerOpts();
-	answerQuestion 
 }
 
 // Displays the current question and gets the next question ready
@@ -170,14 +169,12 @@ async function getQuestions(nQuestions, category, difficulty, type) {
 	if (type !== "any") params.append("type", type);
 	if (sessionToken) params.append("token", sessionToken);
 	const url = `${baseUrl}?${params.toString()}`;
-	console.log(url);
 	try {
 		const response = await fetch(url);
 		if (!response.ok) {
 			throw new Error(`Response status: ${response.status}`);
 		}
 		const result = await response.json();
-		console.log(result);
 		let questionsList = [];
 		let i = 1;
 		result.results.forEach((question) => {
@@ -193,9 +190,6 @@ async function getQuestions(nQuestions, category, difficulty, type) {
 			);
 			i++;
 		});
-		console.log(questionsList);
 		return questionsList;
-	} catch (error) {
-		console.log(error);
-	}
+	} catch (error) {}
 }
