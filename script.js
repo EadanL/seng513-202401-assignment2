@@ -51,31 +51,41 @@ class Question {
 		this.difficulty = difficulty;
 		this.question_text = this.decodeHTMLEntities(question);
 		this.answer = correctAnswer;
-		this.user_answer;
+		this.userAnswer;
 		this.incorrectAnswers = incorrectAnswers;
+		this.answerOrder;
 	}
 
-	generateAnswerOpts = () => {
+	generateAnswerOpts() {
 		let el = ``;
 		if (this.type === "boolean") {
 			el = `
-				<label><input type="radio" name="multi-choice-opt" value="True">True</label>
-				<label><input type="radio" name="multi-choice-opt" value="False">False</label>`;
+				<label><input type="radio" name="multi-choice-opt" value="True" ${
+					this.userAnswer === "True" ? "checked" : ""
+				}>True</label>
+				<label><input type="radio" name="multi-choice-opt" value="False" ${
+					this.userAnswer === "False" ? "checked" : ""
+				}>False</label>`;
 		}
 		if (this.type === "multiple") {
-			const randomNum = Math.floor(Math.random() * 4) + 1;
-			let allOpts = [...this.incorrectAnswers];
-			allOpts.splice(randomNum, 0, this.answer);
-			for (let i = 0; i < 4; i++) {
+			// Generate answer order only once
+			if (!this.answerOrder) {
+				const randomNum = Math.floor(Math.random() * 4) + 1;
+				this.answerOrder = [...this.incorrectAnswers];
+				this.answerOrder.splice(randomNum, 0, this.answer);
+			}
+			this.answerOrder.forEach((answer) => {
 				el += `
 					<label>
-						<input type="radio" name="multi-choice-opt" value="${allOpts[i]}">
-						<span>${allOpts[i]}</span>
+						<input type="radio" name="multi-choice-opt" value="${answer}" ${
+					this.userAnswer === answer ? "checked" : ""
+				}>
+						<span>${answer}</span>
 					</label>`;
-			}
+			});
 		}
 		return el;
-	};
+	}
 
 	// This doesn't have to be a member function
 	decodeHTMLEntities = (text) => {
@@ -89,7 +99,7 @@ class Quiz {
 	constructor(start_time, numQuestions, category, difficulty, type) {
 		this.questionsList = [];
 		this.start_time = start_time;
-		this.numQuestions = numQuestions;
+		this.numQuestions = parseInt(numQuestions);
 		this.category = category;
 		this.difficulty = difficulty;
 		this.type = type;
@@ -104,17 +114,18 @@ class Quiz {
 			this.difficulty,
 			this.type
 		);
+		this.initButtonListener();
+		this.initMultiSelectListener();
 	}
 
 	getCurrentQuestion = () => {
 		return this.questionsList[this.currentQuestionIndex - 1];
 	};
 
-	initButtonEvents() {
+	initButtonListener() {
 		const prevNextBtn = document.querySelector(".buttons");
 		const nextBtn = document.querySelector(".next-button");
 		const prevBtn = document.querySelector(".prev-button");
-		console.log(this.currentQuestionIndex);
 		prevNextBtn.addEventListener("click", (e) => {
 			if (
 				e.target == nextBtn &&
@@ -130,7 +141,16 @@ class Quiz {
 		});
 	}
 
+	initMultiSelectListener() {
+		const ansOptsCont = document.querySelector(".ans-opts-container");
+		ansOptsCont.addEventListener("change", (e) => {
+			const currentQuestion = this.getCurrentQuestion();
+			currentQuestion.userAnswer = e.target.value;
+		});
+	}
+
 	displayQuestion() {
+		console.log(this);
 		const questionNum = document.querySelector(".question-number");
 		const questionTextHeading = document.querySelector(".question-text");
 		const answerOptions = document.querySelector(".ans-opts-container");
@@ -141,6 +161,8 @@ class Quiz {
 		const ansOptsHtml = currentQuestion.generateAnswerOpts();
 		answerOptions.innerHTML = ansOptsHtml;
 	}
+
+	submitQuiz() {}
 }
 
 function startQuiz(quiz) {
@@ -151,7 +173,6 @@ function startQuiz(quiz) {
 	// Hide the api form
 	document.querySelector(".api-form").classList.add("hidden");
 	quiz.displayQuestion();
-	quiz.initButtonEvents();
 	// setupNavButtonListeners(quiz);
 }
 
