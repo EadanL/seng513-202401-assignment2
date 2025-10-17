@@ -32,9 +32,13 @@ nav {
 main {
 	grid-column: 2 / 3;
 	display: flex;
-	align-items: start;
-	justify-content: center;
-	padding-top: 20%;
+	flex-direction: column;
+	justify-content: start;
+}
+
+main::before {
+	content: "";
+	height: 5%;
 }
 
 aside {
@@ -78,7 +82,8 @@ header::after {
 }
 
 /* MAIN CONTENT STRUCTURE */
-.centre-content {
+.api-form,
+.question-card {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
