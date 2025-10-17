@@ -33,7 +33,6 @@ apiForm.addEventListener("submit", async (event) => {
 	// Create and start the quiz
 	const quiz = new Quiz(Date.now(), numQuestions, category, difficulty, type);
 	await quiz.init();
-	startQuiz(quiz);
 });
 
 class User {
@@ -108,19 +107,11 @@ class Quiz {
 	}
 
 	async init() {
-		this.questionsList = await getQuestions(
-			this.numQuestions,
-			this.category,
-			this.difficulty,
-			this.type
-		);
+		await this.getQuestions();
 		this.initButtonListener();
 		this.initMultiSelectListener();
+		this.startQuiz();
 	}
-
-	getCurrentQuestion = () => {
-		return this.questionsList[this.currentQuestionIndex - 1];
-	};
 
 	initButtonListener() {
 		const prevNextBtn = document.querySelector(".buttons");
@@ -139,6 +130,17 @@ class Quiz {
 				this.displayQuestion();
 			}
 		});
+		const quizActions = document.querySelector(".quiz-actions");
+		const submitBtn = document.querySelector(".submit-quiz");
+		const addQuestion = document.querySelector(".add-question");
+		quizActions.addEventListener("click", (e) => {
+			if (e.target == submitBtn) {
+				// run submitQuiz()
+				// Maybe add logic to bring up a warning if user has not answered all questions
+			}
+			if (e.target == addQuestion) {
+			}
+		});
 	}
 
 	initMultiSelectListener() {
@@ -147,6 +149,55 @@ class Quiz {
 			const currentQuestion = this.getCurrentQuestion();
 			currentQuestion.userAnswer = e.target.value;
 		});
+	}
+
+	startQuiz() {
+		// Display the originally hidden elements
+		document.querySelectorAll(".hidden").forEach((el) => {
+			el.classList.remove("hidden");
+		});
+		// Hide the api form
+		document.querySelector(".api-form").classList.add("hidden");
+		this.displayQuestion();
+		// setupNavButtonListeners(quiz);
+	}
+
+	async getQuestions() {
+		const baseUrl = `https://opentdb.com/api.php`;
+		const params = new URLSearchParams({ amount: this.numQuestions });
+		// Example what comes at the end for customizing fetched questions amount=10&category=9&difficulty=easy&type=multiple
+		if (this.category !== "any") params.append("category", this.category);
+		if (this.difficulty !== "any") params.append("difficulty", this.difficulty);
+		if (this.type !== "any") params.append("type", this.type);
+		if (sessionToken) params.append("token", sessionToken);
+		const url = `${baseUrl}?${params.toString()}`;
+		try {
+			const response = await fetch(url);
+			if (!response.ok) {
+				throw new Error(`Response status: ${response.status}`);
+			}
+			const result = await response.json();
+			let questionsList = [];
+			let i = 1;
+			result.results.forEach((question) => {
+				questionsList.push(
+					new Question(
+						i,
+						question.type,
+						question.difficulty,
+						question.question,
+						question.correct_answer,
+						question.incorrect_answers
+					)
+				);
+				i++;
+			});
+			this.questionsList = questionsList;
+		} catch (error) {} // ADD ERROR CATCHING HERE
+	}
+
+	getCurrentQuestion() {
+		return this.questionsList[this.currentQuestionIndex - 1];
 	}
 
 	displayQuestion() {
@@ -160,57 +211,23 @@ class Quiz {
 		questionTextHeading.textContent = currentQuestion.question_text;
 		const ansOptsHtml = currentQuestion.generateAnswerOpts();
 		answerOptions.innerHTML = ansOptsHtml;
+
+		const questionCard = document.querySelector(".quiz-actions");
+		if (
+			this.currentQuestionIndex === this.numQuestions ||
+			this.allQuestionsAnswered()
+		) {
+			questionCard.classList.remove("hidden-end");
+		} else if (!questionCard.classList.contains("hidden-end")) {
+			questionCard.classList.add("hidden-end");
+		}
+	}
+
+	allQuestionsAnswered() {
+		return this.questionsList.every(
+			(question) => question.userAnswer !== undefined
+		);
 	}
 
 	submitQuiz() {}
-}
-
-function startQuiz(quiz) {
-	// Display the originally hidden elements
-	document.querySelectorAll(".hidden").forEach((el) => {
-		el.classList.remove("hidden");
-	});
-	// Hide the api form
-	document.querySelector(".api-form").classList.add("hidden");
-	quiz.displayQuestion();
-	// setupNavButtonListeners(quiz);
-}
-
-// Displays the current question and gets the next question ready
-// Include logic to adapt the difficulty of the next question based on previous answers
-// Use this function to grab new questions if the user wants to extend the quiz.
-function* questionGenerator() {}
-
-async function getQuestions(nQuestions, category, difficulty, type) {
-	const baseUrl = `https://opentdb.com/api.php`;
-	const params = new URLSearchParams({ amount: nQuestions });
-	// Example what comes at the end for customizing fetched questions amount=10&category=9&difficulty=easy&type=multiple
-	if (category !== "any") params.append("category", category);
-	if (difficulty !== "any") params.append("difficulty", difficulty);
-	if (type !== "any") params.append("type", type);
-	if (sessionToken) params.append("token", sessionToken);
-	const url = `${baseUrl}?${params.toString()}`;
-	try {
-		const response = await fetch(url);
-		if (!response.ok) {
-			throw new Error(`Response status: ${response.status}`);
-		}
-		const result = await response.json();
-		let questionsList = [];
-		let i = 1;
-		result.results.forEach((question) => {
-			questionsList.push(
-				new Question(
-					i,
-					question.type,
-					question.difficulty,
-					question.question,
-					question.correct_answer,
-					question.incorrect_answers
-				)
-			);
-			i++;
-		});
-		return questionsList;
-	} catch (error) {}
 }

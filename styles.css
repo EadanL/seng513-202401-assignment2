@@ -82,6 +82,12 @@ header::after {
 }
 
 /* MAIN CONTENT STRUCTURE */
+.centre-content {
+	display: flex;
+	flex-direction: column;
+	gap: 2rem;
+}
+
 .api-form,
 .question-card {
 	flex: 1;
@@ -164,11 +170,11 @@ button {
 	-webkit-tap-highlight-color: transparent;
 }
 
-.buttons {
+.buttons,
+.quiz-actions {
 	display: flex;
 	justify-content: end;
-	gap: 12px;
-	margin: 2rem 0 0;
+	gap: 1rem;
 }
 
 button {
@@ -183,6 +189,10 @@ button {
 
 button:hover {
 	background: transparent;
+}
+
+.buttons {
+	margin: 2rem 0 0;
 }
 
 .next-button {
@@ -247,6 +257,7 @@ footer {
 	}
 }
 
-.hidden {
+.hidden,
+.hidden-end {
 	display: none;
 }
