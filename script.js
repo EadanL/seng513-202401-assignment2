@@ -31,10 +31,10 @@ apiForm.addEventListener("submit", async (event) => {
 	const type = document.querySelector('select[name="trivia_type"]').value;
 
 	// Create and start the quiz
-	const quiz = new Quiz(Date.now(), numQuestions, category, difficulty, type);
-	await quiz.init();
+	const quiz = new Quiz(Date.now(), category, difficulty, type);
+	await quiz.init(numQuestions);
 });
-
+// TODO: Implement the User class (properties like username and score history)
 class User {
 	constructor(username) {
 		this.username = username;
@@ -49,7 +49,7 @@ class Question {
 		this.type = type;
 		this.difficulty = difficulty;
 		this.question_text = this.decodeHTMLEntities(question);
-		this.answer = correctAnswer;
+		this.answer = this.decodeHTMLEntities(correctAnswer);
 		this.userAnswer;
 		this.incorrectAnswers = incorrectAnswers;
 		this.answerOrder;
@@ -95,21 +95,23 @@ class Question {
 }
 
 class Quiz {
-	constructor(start_time, numQuestions, category, difficulty, type) {
+	constructor(start_time, category, difficulty, type) {
 		this.questionsList = [];
 		this.start_time = start_time;
-		this.numQuestions = parseInt(numQuestions);
+		this.numQuestions = 0;
 		this.category = category;
 		this.difficulty = difficulty;
 		this.type = type;
 		this.score = 0;
 		this.currentQuestionIndex = 1;
+		this.apiURL;
+		this.lastReqTime;
 	}
 
-	async init() {
-		await this.getQuestions();
-		this.initButtonListener();
+	async init(numQuestions) {
+		await this.getQuestions(parseInt(numQuestions));
 		this.initMultiSelectListener();
+		this.initButtonListener();
 		this.startQuiz();
 	}
 
@@ -133,12 +135,14 @@ class Quiz {
 		const quizActions = document.querySelector(".quiz-actions");
 		const submitBtn = document.querySelector(".submit-quiz");
 		const addQuestion = document.querySelector(".add-question");
-		quizActions.addEventListener("click", (e) => {
+		quizActions.addEventListener("click", async (e) => {
 			if (e.target == submitBtn) {
-				// run submitQuiz()
-				// Maybe add logic to bring up a warning if user has not answered all questions
+				this.submitQuiz();
 			}
 			if (e.target == addQuestion) {
+				await this.getQuestions(1);
+				this.currentQuestionIndex++;
+				this.displayQuestion();
 			}
 		});
 	}
@@ -159,30 +163,40 @@ class Quiz {
 		// Hide the api form
 		document.querySelector(".api-form").classList.add("hidden");
 		this.displayQuestion();
-		// setupNavButtonListeners(quiz);
+		// TODO: Setup question navbar links
 	}
 
-	async getQuestions() {
+	async getQuestions(numQuestions) {
+		console.log(numQuestions);
+		// Rate limiting: ensure 5 seconds between requests
+		const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+		const delayNeeded = 5000 - timeSinceLastRequest;
+		if (delayNeeded > 0) {
+			await new Promise((resolve) => setTimeout(resolve, delayNeeded));
+		}
+		this.lastRequestTime = Date.now();
+
 		const baseUrl = `https://opentdb.com/api.php`;
-		const params = new URLSearchParams({ amount: this.numQuestions });
+		const params = new URLSearchParams({ amount: numQuestions });
 		// Example what comes at the end for customizing fetched questions amount=10&category=9&difficulty=easy&type=multiple
 		if (this.category !== "any") params.append("category", this.category);
 		if (this.difficulty !== "any") params.append("difficulty", this.difficulty);
 		if (this.type !== "any") params.append("type", this.type);
 		if (sessionToken) params.append("token", sessionToken);
-		const url = `${baseUrl}?${params.toString()}`;
+		this.apiURL = `${baseUrl}?${params.toString()}`;
 		try {
-			const response = await fetch(url);
+			const response = await fetch(this.apiURL);
+
 			if (!response.ok) {
 				throw new Error(`Response status: ${response.status}`);
 			}
 			const result = await response.json();
-			let questionsList = [];
-			let i = 1;
+			console.log(result);
 			result.results.forEach((question) => {
-				questionsList.push(
+				console.log(this.questionsList.length);
+				this.questionsList.push(
 					new Question(
-						i,
+						this.questionsList.length + 1,
 						question.type,
 						question.difficulty,
 						question.question,
@@ -190,10 +204,9 @@ class Quiz {
 						question.incorrect_answers
 					)
 				);
-				i++;
+				this.numQuestions++;
 			});
-			this.questionsList = questionsList;
-		} catch (error) {} // ADD ERROR CATCHING HERE
+		} catch (error) {} // TODO: add error catching
 	}
 
 	getCurrentQuestion() {
@@ -229,5 +242,22 @@ class Quiz {
 		);
 	}
 
-	submitQuiz() {}
+	submitQuiz() {
+		if (!this.allQuestionsAnswered()) {
+			const submitConfirmation = confirm(
+				"Not all questions have been answered! Click Cancel to return to the quiz or OK to submit anyways"
+			);
+			if (!submitConfirmation) {
+				return;
+			}
+		}
+		let tempScore = 0;
+		this.questionsList.forEach((question) => {
+			if (question.userAnswer === question.answer) tempScore++;
+		});
+		this.score = ((tempScore / this.numQuestions) * 100).toFixed(2);
+		console.log(this.score);
+		// TODO: Create a score page after submitting (potentially show which answers were wrong and the corrected answer)
+	}
 }
+// TODO: Demonstrate the use of `bind`, `call`, or `apply` to manipulate the context of `this` in callbacks
