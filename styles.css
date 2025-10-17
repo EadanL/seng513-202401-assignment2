@@ -1,6 +1,12 @@
 :root {
 	--blue: #1899d6;
 }
+/* [ ]: Pick a colour palette */
+/* [ ]: Maybe pick a font/font pack */
+/* [ ]: add hover highlight to answer options */
+/* [ ]: Style the "add question" and "submit quiz" buttons */
+/* TODO: Maybe make the question-card pop a bit more */
+/* TODO: Maybe add some images to the site */
 
 /* GENERAL PAGE STRUCTURE */
 body {
@@ -26,7 +32,6 @@ header {
 
 nav {
 	grid-column: 1 / 2;
-	margin-left: 0.5rem;
 }
 
 main {
@@ -38,7 +43,7 @@ main {
 
 main::before {
 	content: "";
-	height: 5%;
+	height: 3rem;
 }
 
 aside {
@@ -72,13 +77,40 @@ header::after {
 }
 
 /* NAV BAR STYLES */
+.question-nav {
+	height: 100%;
+	overflow-y: scroll;
+	padding: 2rem 1rem;
+}
 
 .nav-title {
-	padding-inline: 15% 10%;
+	padding: 0 2rem;
 }
 
 .question-list {
-	padding-left: 15%;
+	padding: 0 1rem;
+	list-style: none;
+	display: inline-block;
+}
+
+.question-nav-link {
+	display: block;
+	padding: 0.5rem 1rem;
+	text-decoration: none;
+	color: #333;
+	border-radius: 4px;
+	margin-bottom: 0.25rem;
+	transition: background-color 0.2s;
+}
+
+.question-nav-link:hover {
+	background-color: #e0e0e0;
+}
+
+.question-nav-link.active {
+	background-color: var(--blue);
+	color: white;
+	font-weight: 600;
 }
 
 /* MAIN CONTENT STRUCTURE */
@@ -88,6 +120,7 @@ header::after {
 	gap: 2rem;
 }
 
+.result-card,
 .api-form,
 .question-card {
 	flex: 1;
@@ -97,13 +130,33 @@ header::after {
 	background-color: #edede9;
 	min-width: 100px;
 	border-radius: 8px;
-	padding: 24px;
+	padding: 2rem;
 }
 
 .api-form {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+}
+
+.result-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 1rem;
+}
+
+.username-input-container {
+	display: flex;
+	flex-direction: row;
+	gap: 1rem;
+	justify-content: center;
+	align-items: center;
+}
+
+.username-input {
+	border-radius: 4px;
+	line-height: 1.5rem;
 }
 
 form label {
@@ -166,8 +219,9 @@ select {
 	cursor: pointer;
 }
 
-button {
-	-webkit-tap-highlight-color: transparent;
+.result-card h4 {
+	margin: 0;
+	padding: 0;
 }
 
 .buttons,
@@ -185,6 +239,7 @@ button {
 	padding: 0.75rem 1.5rem;
 	cursor: pointer;
 	transition: background 0.25s;
+	-webkit-tap-highlight-color: transparent;
 }
 
 button:hover {
@@ -193,6 +248,11 @@ button:hover {
 
 .buttons {
 	margin: 2rem 0 0;
+}
+
+.username-btn {
+	background-color: aquamarine;
+	padding: 0.5rem 1.5rem;
 }
 
 .next-button {
@@ -217,7 +277,11 @@ footer {
 	height: 100px;
 }
 
-@media only screen and (max-width: 700px) {
+@media only screen and (max-width: 830px) {
+	html {
+		font-size: 12px;
+	}
+
 	body {
 		grid-template: auto 1fr 1fr auto / 1fr;
 		grid-template-areas:
@@ -240,9 +304,14 @@ footer {
 		padding: 12px 12px 0 12px;
 	}
 
+	main::before {
+		display: none;
+	}
+
 	nav {
 		grid-area: nav;
 		grid-column: 1;
+		display: flex;
 		margin-left: 0;
 		margin: 0 0.5rem;
 	}
@@ -254,6 +323,10 @@ footer {
 	footer {
 		grid-area: footer;
 		grid-column: 1;
+		height: 50px;
+	}
+
+	.question-list {
 	}
 }
 

@@ -10,7 +10,7 @@
 	<body>
 		<header><h1>Open Trivia Quiz</h1></header>
 		<nav class="question-nav hidden">
-			<h4 class="nav-title">Questions</h4>
+			<h3 class="nav-title">Questions</h3>
 			<ul class="question-list">
 				<li>Placeholder question navigation</li>
 			</ul>
@@ -18,7 +18,7 @@
 		<main>
 			<div class="centre-content">
 				<form action method="post" class="api-form">
-					<h2 class="form-signin-heading">Quiz Selection</h2>
+					<h2>Quiz Selection</h2>
 					<div class="num-questions-input">
 						<label for="trivia_amount">Number of Questions:</label>
 						<input
@@ -90,9 +90,24 @@
 						</div>
 					</form>
 				</div>
-				<div class="quiz-actions hidden-end">
-					<button type="button" class="add-question">Add Question</button>
-					<button type="button" class="submit-quiz">Submit Quiz</button>
+				<div class="result-card hidden">
+					<h1 class="quiz-score"></h1>
+					<h4>Enter a username to save quiz results.</h4>
+					<input
+						type="text"
+						class="username-input"
+						placeholder="Username"
+						autocomplete="off"
+					/>
+					<button type="button" class="username-btn hidden">save</button>
+				</div>
+				<div class="quiz-actions hidden">
+					<button type="button" class="action-1 add-question">
+						Add Question
+					</button>
+					<button type="button" class="action-2 submit-quiz">
+						Submit Quiz
+					</button>
 				</div>
 			</div>
 		</main>

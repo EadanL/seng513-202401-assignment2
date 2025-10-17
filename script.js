@@ -112,6 +112,7 @@ class Quiz {
 		await this.getQuestions(parseInt(numQuestions));
 		this.initMultiSelectListener();
 		this.initButtonListener();
+		this.initQuestionNavListener();
 		this.startQuiz();
 	}
 
@@ -126,24 +127,46 @@ class Quiz {
 			) {
 				this.currentQuestionIndex++;
 				this.displayQuestion();
+				this.updateActiveNavLink();
 			}
 			if (e.target == prevBtn && this.currentQuestionIndex > 1) {
 				this.currentQuestionIndex--;
 				this.displayQuestion();
+				this.updateActiveNavLink();
 			}
 		});
 		const quizActions = document.querySelector(".quiz-actions");
-		const submitBtn = document.querySelector(".submit-quiz");
-		const addQuestion = document.querySelector(".add-question");
+		const action1 = document.querySelector(".action-1");
+		const action2 = document.querySelector(".action-2");
 		quizActions.addEventListener("click", async (e) => {
-			if (e.target == submitBtn) {
-				this.submitQuiz();
+			if (e.target == action1) {
+				// Check if button still has add-question class
+				if (e.target.classList.contains("add-question")) {
+					await this.getQuestions(1);
+					this.currentQuestionIndex++;
+					this.buildQuestionNav(); // Rebuild nav with new question
+					this.displayQuestion();
+					this.updateActiveNavLink();
+				} else {
+					// It's now "View Scores" - implement this functionality
+					console.log("View Scores clicked");
+				}
 			}
-			if (e.target == addQuestion) {
-				await this.getQuestions(1);
-				this.currentQuestionIndex++;
-				this.displayQuestion();
+			if (e.target == action2) {
+				// Check if button still has submit-quiz class
+				if (e.target.classList.contains("submit-quiz")) {
+					this.submitQuiz();
+				} else {
+					// It's now "Return Home"
+					location.reload();
+				}
 			}
+		});
+
+		const saveUsernameBtn = document.querySelector(".username-btn");
+		saveUsernameBtn.addEventListener("click", (e) => {
+			const usernameInput = document.querySelector(".username-input");
+			const username = usernameInput.value;
 		});
 	}
 
@@ -155,15 +178,71 @@ class Quiz {
 		});
 	}
 
-	startQuiz() {
-		// Display the originally hidden elements
-		document.querySelectorAll(".hidden").forEach((el) => {
-			el.classList.remove("hidden");
+	initQuestionNavListener() {
+		const questionNav = document.querySelector(".question-list");
+		questionNav.addEventListener("click", (e) => {
+			if (e.target.tagName === "A") {
+				e.preventDefault();
+				const questionNum = parseInt(e.target.dataset.questionNum);
+				if (
+					questionNum &&
+					questionNum >= 1 &&
+					questionNum <= this.numQuestions
+				) {
+					this.currentQuestionIndex = questionNum;
+					this.displayQuestion();
+					this.updateActiveNavLink();
+				}
+			}
 		});
-		// Hide the api form
-		document.querySelector(".api-form").classList.add("hidden");
+	}
+
+	initInputListener() {
+		const usernameInput = document.querySelector(".username-input");
+		const usernameBtn = document.querySelector(".username-btn ");
+		const action1Btn = document.querySelector(".action1");
+		usernameInput.addEventListener("input", (e) => {
+			console.log(e.data);
+			if (usernameInput.value) usernameBtn.classList.remove("hidden");
+			else usernameBtn.classList.add("hidden");
+		});
+	}
+
+	startQuiz() {
+		// Hide the api form and show question content
+		toggleHidden([".question-card", ".question-nav", ".api-form"]);
+		this.buildQuestionNav();
 		this.displayQuestion();
-		// TODO: Setup question navbar links
+	}
+
+	buildQuestionNav() {
+		const navQstnList = document.querySelector(".question-list");
+		navQstnList.innerHTML = ""; // Clear placeholder
+
+		this.questionsList.forEach((question, index) => {
+			const li = document.createElement("li");
+			const a = document.createElement("a");
+			a.href = "#";
+			a.textContent = `Question ${index + 1}`;
+			a.dataset.questionNum = index + 1;
+			a.classList.add("question-nav-link");
+			if (index === 0) {
+				a.classList.add("active");
+			}
+			li.appendChild(a);
+			navQstnList.appendChild(li);
+		});
+	}
+
+	updateActiveNavLink() {
+		const navLinks = document.querySelectorAll(".question-nav-link");
+		navLinks.forEach((link, index) => {
+			if (index + 1 === this.currentQuestionIndex) {
+				link.classList.add("active");
+			} else {
+				link.classList.remove("active");
+			}
+		});
 	}
 
 	async getQuestions(numQuestions) {
@@ -213,12 +292,20 @@ class Quiz {
 		return this.questionsList[this.currentQuestionIndex - 1];
 	}
 
-	displayQuestion() {
+	async displayQuestion() {
 		console.log(this);
 		const questionNum = document.querySelector(".question-number");
 		const questionTextHeading = document.querySelector(".question-text");
 		const answerOptions = document.querySelector(".ans-opts-container");
 		const currentQuestion = this.getCurrentQuestion();
+
+		// FIXME: Add some protection to accessing currentQuestion when spamming add question or starting the quiz too fast
+		// // Protect against accessing currentQuestion before it's assigned
+		// if (!currentQuestion) {
+		// 	console.warn("Question not yet loaded");
+		// 	await new Promise((resolve) => setTimeout(resolve, 1000));
+		// 	const currentQuestion = this.getCurrentQuestion();
+		// }
 
 		questionNum.textContent = `Question: ${this.currentQuestionIndex}`;
 		questionTextHeading.textContent = currentQuestion.question_text;
@@ -230,10 +317,23 @@ class Quiz {
 			this.currentQuestionIndex === this.numQuestions ||
 			this.allQuestionsAnswered()
 		) {
-			questionCard.classList.remove("hidden-end");
-		} else if (!questionCard.classList.contains("hidden-end")) {
-			questionCard.classList.add("hidden-end");
+			questionCard.classList.toggle("hidden");
+		} else if (!questionCard.classList.contains("hidden")) {
+			questionCard.classList.toggle("hidden");
 		}
+	}
+
+	displayResults() {
+		this.initInputListener();
+		toggleHidden([".question-card", ".result-card", ".question-nav"]);
+		const scoreH1 = document.querySelector(".quiz-score");
+		scoreH1.textContent = `Score: ${this.score}%`;
+		const action1 = document.querySelector(".action-1");
+		action1.classList.toggle("add-question");
+		const action2 = document.querySelector(".action-2");
+		action2.classList.toggle("submit-quiz");
+		action1.textContent = "View Scores";
+		action2.textContent = "Return Home";
 	}
 
 	allQuestionsAnswered() {
@@ -256,8 +356,21 @@ class Quiz {
 			if (question.userAnswer === question.answer) tempScore++;
 		});
 		this.score = ((tempScore / this.numQuestions) * 100).toFixed(2);
-		console.log(this.score);
-		// TODO: Create a score page after submitting (potentially show which answers were wrong and the corrected answer)
+		this.displayResults();
 	}
 }
+
+function toggleHidden(classes) {
+	classes.forEach((className) => {
+		const classElem = document.querySelectorAll(className);
+		if (classElem) {
+			classElem.forEach((el) => {
+				console.log(el);
+				el.classList.toggle("hidden");
+			});
+		}
+	});
+}
+
 // TODO: Demonstrate the use of `bind`, `call`, or `apply` to manipulate the context of `this` in callbacks
+// TODO: Maybe separate the Quiz class into its own file
