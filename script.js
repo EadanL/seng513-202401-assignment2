@@ -29,15 +29,13 @@ profileBtn.addEventListener("click", (e) => {
 	const storedUsername = User.getStoredUsername();
 	if (!storedUsername) {
 		// Prompt for username first
-		promptForUsername(() => {
-			displayUserProfile();
-		});
+		promptForUsername();
 	} else {
 		displayUserProfile();
 	}
 });
 
-function promptForUsername(callback) {
+function promptForUsername() {
 	const usernamePrompt = prompt(
 		"Please enter a username to view your profile:"
 	);
@@ -48,7 +46,7 @@ function promptForUsername(callback) {
 		if (currentQuiz) {
 			currentQuiz.user = user;
 		}
-		callback();
+		displayUserProfile();
 	}
 }
 
@@ -58,6 +56,7 @@ function displayUserProfile() {
 	const resultCard = document.querySelector(".result-card");
 	const questionNav = document.querySelector(".question-nav");
 	const profileCard = document.querySelector(".profile-card");
+	const quizActions = document.querySelector(".quiz-actions");
 
 	// Determine current view
 	if (!apiForm.classList.contains("hidden")) {
@@ -73,6 +72,7 @@ function displayUserProfile() {
 	questionCard.classList.add("hidden");
 	resultCard.classList.add("hidden");
 	questionNav.classList.add("hidden");
+	quizActions.classList.add("hidden");
 
 	// Show profile card
 	profileCard.classList.remove("hidden");
@@ -91,9 +91,6 @@ function populateProfileCard() {
 			<p>No user logged in</p>
 			<button type="button" class="return-from-profile">Back</button>
 		`;
-		// Add event listener for return button
-		// const returnBtn = profileCard.querySelector(".return-from-profile");
-		// returnBtn.onclick = returnFromProfile;
 	} else {
 		const user = new User(username);
 
@@ -129,6 +126,7 @@ function populateProfileCard() {
 }
 
 function getCategoryName(categoryValue) {
+	// category lookup taken from the API documentation
 	const categories = {
 		any: "Any Category",
 		9: "General Knowledge",
@@ -162,8 +160,8 @@ function getCategoryName(categoryValue) {
 function returnFromProfile() {
 	const apiForm = document.querySelector(".api-form");
 	const questionCard = document.querySelector(".question-card");
-	const resultCard = document.querySelector(".result-card");
 	const questionNav = document.querySelector(".question-nav");
+	const quizActions = document.querySelector(".quiz-actions");
 	const profileCard = document.querySelector(".profile-card");
 
 	profileCard.classList.add("hidden");
@@ -173,11 +171,12 @@ function returnFromProfile() {
 	} else if (previousView === "quiz") {
 		questionCard.classList.remove("hidden");
 		questionNav.classList.remove("hidden");
+		quizActions.classList.remove("hidden");
 	}
 }
 
 apiForm.addEventListener("submit", async (event) => {
-	event.preventDefault(); 
+	event.preventDefault();
 
 	const numQuestions = document.getElementById("trivia_amount").value;
 	const category = document.querySelector(
@@ -606,14 +605,14 @@ class Quiz {
 		const ansOptsHtml = currentQuestion.generateAnswerOpts();
 		answerOptions.innerHTML = ansOptsHtml;
 
-		const questionCard = document.querySelector(".quiz-actions");
+		const quizActions = document.querySelector(".quiz-actions");
 		if (
 			this.currentQuestionIndex === this.numQuestions ||
 			this.allQuestionsAnswered()
 		) {
-			questionCard.classList.toggle("hidden");
-		} else if (!questionCard.classList.contains("hidden")) {
-			questionCard.classList.toggle("hidden");
+			quizActions.classList.remove("hidden");
+		} else {
+			quizActions.classList.add("hidden");
 		}
 	}
 
