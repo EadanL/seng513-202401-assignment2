@@ -16,6 +16,25 @@ const getSessionToken = async () => {
 	sessionToken = await getSessionToken();
 })();
 
+// Profile icon listener (needs to be outside Quiz class to work on page load)
+const profileBtn = document.querySelector(".profile-icon");
+profileBtn.addEventListener("click", (e) => {
+	console.log("profile clicked");
+
+	displayUserProfile();
+});
+
+function displayUserProfile() {
+	const apiForm = document.querySelector(".api-form");
+	const questionCard = document.querySelector(".question-card");
+	if (
+		apiForm.classList.contains("hidden") &&
+		!questionCard.classList.contains("hidden")
+	) {
+		toggleHidden([".question-card", ".question-nav", ".profile-card"]);
+	} else toggleHidden([".api-form", ".profile-card"]);
+}
+
 // Handle form submission
 apiForm.addEventListener("submit", async (event) => {
 	event.preventDefault(); // Prevent form from submitting/refreshing page
@@ -38,6 +57,7 @@ apiForm.addEventListener("submit", async (event) => {
 class User {
 	constructor(username) {
 		this.username = username;
+		this.quizHistory;
 	}
 }
 
@@ -106,6 +126,8 @@ class Quiz {
 		this.currentQuestionIndex = 1;
 		this.apiURL;
 		this.lastReqTime;
+		this.user;
+		this.questionGenerator = null;
 	}
 
 	async init(numQuestions) {
@@ -113,6 +135,7 @@ class Quiz {
 		this.initMultiSelectListener();
 		this.initButtonListener();
 		this.initQuestionNavListener();
+		this.questionGenerator = this.createQuestionGenerator();
 		this.startQuiz();
 	}
 
@@ -142,7 +165,7 @@ class Quiz {
 			if (e.target == action1) {
 				// Check if button still has add-question class
 				if (e.target.classList.contains("add-question")) {
-					await this.getQuestions(1);
+					await this.addNewQuestion();
 					this.currentQuestionIndex++;
 					this.buildQuestionNav(); // Rebuild nav with new question
 					this.displayQuestion();
@@ -202,9 +225,11 @@ class Quiz {
 		const usernameBtn = document.querySelector(".username-btn ");
 		const action1Btn = document.querySelector(".action1");
 		usernameInput.addEventListener("input", (e) => {
-			console.log(e.data);
 			if (usernameInput.value) usernameBtn.classList.remove("hidden");
 			else usernameBtn.classList.add("hidden");
+		});
+		usernameBtn.addEventListener("click", (e) => {
+			this.user = new User(usernameInput.value);
 		});
 	}
 
@@ -288,6 +313,73 @@ class Quiz {
 		} catch (error) {} // TODO: add error catching
 	}
 
+	// Generator function to create new questions one at a time
+	async *createQuestionGenerator() {
+		while (true) {
+			// Rate limiting: ensure 5 seconds between requests
+			const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+			const delayNeeded = 5000 - timeSinceLastRequest;
+			if (delayNeeded > 0) {
+				await new Promise((resolve) => setTimeout(resolve, delayNeeded));
+			}
+			this.lastRequestTime = Date.now();
+
+			try {
+				console.log(this.apiURL);
+				const response = await fetch(
+					this.apiURL.replace(/amount=\d+/, "amount=1")
+				);
+
+				if (!response.ok) {
+					throw new Error(`Response status: ${response.status}`);
+				}
+
+				const result = await response.json();
+
+				if (result.results && result.results.length > 0) {
+					const questionData = result.results[0];
+					const newQuestion = new Question(
+						this.questionsList.length + 1,
+						questionData.type,
+						questionData.difficulty,
+						questionData.question,
+						questionData.correct_answer,
+						questionData.incorrect_answers
+					);
+
+					yield newQuestion;
+				}
+			} catch (error) {
+				console.error("Error fetching question:", error);
+				yield null;
+			}
+		}
+	}
+
+	// Add a new question using the generator
+	async addNewQuestion() {
+		if (!this.questionGenerator) {
+			this.questionGenerator = this.createQuestionGenerator();
+		}
+
+		const result = await this.questionGenerator.next();
+
+		if (result.value) {
+			this.questionsList.push(result.value);
+			this.numQuestions++;
+		} else {
+			console.error("Failed to generate new question");
+		}
+	}
+
+	*generateID() {
+		let i = 1;
+		while (true) {
+			yield i;
+			i++;
+		}
+	}
+
 	getCurrentQuestion() {
 		return this.questionsList[this.currentQuestionIndex - 1];
 	}
@@ -298,14 +390,6 @@ class Quiz {
 		const questionTextHeading = document.querySelector(".question-text");
 		const answerOptions = document.querySelector(".ans-opts-container");
 		const currentQuestion = this.getCurrentQuestion();
-
-		// FIXME: Add some protection to accessing currentQuestion when spamming add question or starting the quiz too fast
-		// // Protect against accessing currentQuestion before it's assigned
-		// if (!currentQuestion) {
-		// 	console.warn("Question not yet loaded");
-		// 	await new Promise((resolve) => setTimeout(resolve, 1000));
-		// 	const currentQuestion = this.getCurrentQuestion();
-		// }
 
 		questionNum.textContent = `Question: ${this.currentQuestionIndex}`;
 		questionTextHeading.textContent = currentQuestion.question_text;
@@ -326,6 +410,11 @@ class Quiz {
 	displayResults() {
 		this.initInputListener();
 		toggleHidden([".question-card", ".result-card", ".question-nav"]);
+		if (this.user !== undefined) {
+			console.log("welcome back");
+		} else {
+			toggleHidden([".username-input", ".username-prompt"]);
+		}
 		const scoreH1 = document.querySelector(".quiz-score");
 		scoreH1.textContent = `Score: ${this.score}%`;
 		const action1 = document.querySelector(".action-1");
