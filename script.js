@@ -440,11 +440,8 @@ class Quiz {
 				return;
 			}
 		}
-		let tempScore = 0;
-		this.questionsList.forEach((question) => {
-			if (question.userAnswer === question.answer) tempScore++;
-		});
-		this.score = ((tempScore / this.numQuestions) * 100).toFixed(2);
+		// Using call to calculate score in different context
+		calculateScore.call(this, this.questionsList);
 		this.displayResults();
 	}
 }
@@ -461,5 +458,10 @@ function toggleHidden(classes) {
 	});
 }
 
-// TODO: Demonstrate the use of `bind`, `call`, or `apply` to manipulate the context of `this` in callbacks
-// TODO: Maybe separate the Quiz class into its own file
+function calculateScore(questions) {
+	let tempScore = 0;
+	questions.forEach((question) => {
+		if (question.userAnswer === question.answer) tempScore++;
+	});
+	this.score = ((tempScore / questions.length) * 100).toFixed(2);
+}
