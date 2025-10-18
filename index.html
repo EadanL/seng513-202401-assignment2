@@ -8,7 +8,15 @@
 		<title>Open Trivia Quiz</title>
 	</head>
 	<body>
-		<header><h1>Open Trivia Quiz</h1></header>
+		<header>
+			<h1>Open Trivia Quiz</h1>
+			<div class="profile-icon-container">
+				<img
+					src="./images/reshot-icon-user-ZXFJAEQURK.svg"
+					class="profile-icon"
+				/>
+			</div>
+		</header>
 		<nav class="question-nav hidden">
 			<h3 class="nav-title">Questions</h3>
 			<ul class="question-list">
@@ -92,15 +100,18 @@
 				</div>
 				<div class="result-card hidden">
 					<h1 class="quiz-score"></h1>
-					<h4>Enter a username to save quiz results.</h4>
+					<h4 class="username-prompt hidden">
+						Enter a username to save quiz results.
+					</h4>
 					<input
 						type="text"
-						class="username-input"
+						class="username-input hidden"
 						placeholder="Username"
 						autocomplete="off"
 					/>
 					<button type="button" class="username-btn hidden">save</button>
 				</div>
+				<div class="profile-card hidden"></div>
 				<div class="quiz-actions hidden">
 					<button type="button" class="action-1 add-question">
 						Add Question

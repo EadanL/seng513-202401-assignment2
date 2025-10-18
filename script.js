@@ -16,30 +16,169 @@ const getSessionToken = async () => {
 	sessionToken = await getSessionToken();
 })();
 
+// Track where the user came from when viewing profile
+let previousView = "api-form"; // Can be 'api-form', 'quiz', or 'results'
+let currentQuiz = null; // Store reference to current quiz
+
 // Profile icon listener (needs to be outside Quiz class to work on page load)
 const profileBtn = document.querySelector(".profile-icon");
 profileBtn.addEventListener("click", (e) => {
 	console.log("profile clicked");
 
-	displayUserProfile();
+	// Check if user has a username set
+	const storedUsername = User.getStoredUsername();
+	if (!storedUsername) {
+		// Prompt for username first
+		promptForUsername(() => {
+			displayUserProfile();
+		});
+	} else {
+		displayUserProfile();
+	}
 });
+
+function promptForUsername(callback) {
+	const usernamePrompt = prompt(
+		"Please enter a username to view your profile:"
+	);
+	if (usernamePrompt && usernamePrompt.trim()) {
+		const username = usernamePrompt.trim();
+		const user = new User(username);
+		User.setStoredUsername(username);
+		if (currentQuiz) {
+			currentQuiz.user = user;
+		}
+		callback();
+	}
+}
 
 function displayUserProfile() {
 	const apiForm = document.querySelector(".api-form");
 	const questionCard = document.querySelector(".question-card");
-	if (
-		apiForm.classList.contains("hidden") &&
-		!questionCard.classList.contains("hidden")
-	) {
-		toggleHidden([".question-card", ".question-nav", ".profile-card"]);
-	} else toggleHidden([".api-form", ".profile-card"]);
+	const resultCard = document.querySelector(".result-card");
+	const questionNav = document.querySelector(".question-nav");
+	const profileCard = document.querySelector(".profile-card");
+
+	// Determine current view
+	if (!apiForm.classList.contains("hidden")) {
+		previousView = "api-form";
+	} else if (!questionCard.classList.contains("hidden")) {
+		previousView = "quiz";
+	} else if (!resultCard.classList.contains("hidden")) {
+		previousView = "results";
+	}
+
+	// Hide all views
+	apiForm.classList.add("hidden");
+	questionCard.classList.add("hidden");
+	resultCard.classList.add("hidden");
+	questionNav.classList.add("hidden");
+
+	// Show profile card
+	profileCard.classList.remove("hidden");
+
+	// Populate profile card
+	populateProfileCard();
 }
 
-// Handle form submission
-apiForm.addEventListener("submit", async (event) => {
-	event.preventDefault(); // Prevent form from submitting/refreshing page
+function populateProfileCard() {
+	const profileCard = document.querySelector(".profile-card");
+	const username = User.getStoredUsername();
 
-	// Get form values
+	if (!username) {
+		profileCard.innerHTML = `
+			<h1>User Profile</h1>
+			<p>No user logged in</p>
+			<button type="button" class="return-from-profile">Back</button>
+		`;
+		// Add event listener for return button
+		// const returnBtn = profileCard.querySelector(".return-from-profile");
+		// returnBtn.onclick = returnFromProfile;
+	} else {
+		const user = new User(username);
+
+		let profileHTML = `<h1>User Profile</h1><h2>Welcome, ${username}!</h2>`;
+
+		if (!user.quizHistory || user.quizHistory.length === 0) {
+			profileHTML += `<p>No quiz history yet. Take a quiz to see your scores here!</p>`;
+		} else {
+			profileHTML += `<h3>Quiz History</h3><div class="score-list">`;
+			user.quizHistory.forEach((quiz, index) => {
+				console.log(quiz.category);
+				const categoryName = getCategoryName(quiz.category);
+				profileHTML += `
+					<div class="score-item">
+						<h4>Quiz ${index + 1} - ${new Date(quiz.date).toLocaleDateString()}</h4>
+						<p>Score: ${quiz.score}%</p>
+						<p>Questions: ${quiz.numQuestions}</p>
+						<p>Category: ${categoryName}</p>
+						<p>Difficulty: ${quiz.difficulty || "Any"}</p>
+						<p>Type: ${quiz.type || "Any"}</p>
+					</div>
+				`;
+			});
+			profileHTML += `</div>`;
+		}
+
+		profileHTML += `<button type="button" class="return-from-profile">Back</button>`;
+		profileCard.innerHTML = profileHTML;
+	}
+	// Add event listener for return button
+	const returnBtn = profileCard.querySelector(".return-from-profile");
+	returnBtn.onclick = returnFromProfile;
+}
+
+function getCategoryName(categoryValue) {
+	const categories = {
+		any: "Any Category",
+		9: "General Knowledge",
+		10: "Entertainment: Books",
+		11: "Entertainment: Film",
+		12: "Entertainment: Music",
+		13: "Entertainment: Musicals & Theatres",
+		14: "Entertainment: Television",
+		15: "Entertainment: Video Games",
+		16: "Entertainment: Board Games",
+		17: "Science & Nature",
+		18: "Science: Computers",
+		19: "Science: Mathematics",
+		20: "Mythology",
+		21: "Sports",
+		22: "Geography",
+		23: "History",
+		24: "Politics",
+		25: "Art",
+		26: "Celebrities",
+		27: "Animals",
+		28: "Vehicles",
+		29: "Entertainment: Comics",
+		30: "Science: Gadgets",
+		31: "Entertainment: Japanese Anime & Manga",
+		32: "Entertainment: Cartoon & Animations",
+	};
+	return categories[categoryValue] || "Unknown";
+}
+
+function returnFromProfile() {
+	const apiForm = document.querySelector(".api-form");
+	const questionCard = document.querySelector(".question-card");
+	const resultCard = document.querySelector(".result-card");
+	const questionNav = document.querySelector(".question-nav");
+	const profileCard = document.querySelector(".profile-card");
+
+	profileCard.classList.add("hidden");
+
+	if (previousView === "api-form" || previousView === "results") {
+		apiForm.classList.remove("hidden");
+	} else if (previousView === "quiz") {
+		questionCard.classList.remove("hidden");
+		questionNav.classList.remove("hidden");
+	}
+}
+
+apiForm.addEventListener("submit", async (event) => {
+	event.preventDefault(); 
+
 	const numQuestions = document.getElementById("trivia_amount").value;
 	const category = document.querySelector(
 		'select[name="trivia_category"]'
@@ -49,15 +188,67 @@ apiForm.addEventListener("submit", async (event) => {
 	).value;
 	const type = document.querySelector('select[name="trivia_type"]').value;
 
-	// Create and start the quiz
 	const quiz = new Quiz(Date.now(), category, difficulty, type);
+	currentQuiz = quiz;
+
+	const storedUsername = User.getStoredUsername();
+	if (storedUsername) {
+		quiz.user = new User(storedUsername);
+	}
+
 	await quiz.init(numQuestions);
 });
 // TODO: Implement the User class (properties like username and score history)
 class User {
 	constructor(username) {
 		this.username = username;
-		this.quizHistory;
+		this.quizHistory = this.loadQuizHistory();
+	}
+
+	loadQuizHistory() {
+		try {
+			const stored = localStorage.getItem(`user_${this.username}`);
+			if (!stored) return [];
+			const parsed = JSON.parse(stored);
+			// Ensure it's an array
+			return Array.isArray(parsed) ? parsed : [];
+		} catch (error) {
+			console.error("Error loading quiz history:", error);
+			// Clear corrupted data
+			localStorage.removeItem(`user_${this.username}`);
+			return [];
+		}
+	}
+
+	saveQuizResult(score, numQuestions, category, difficulty, type, date) {
+		// Ensure quizHistory is an array
+		if (!Array.isArray(this.quizHistory)) {
+			this.quizHistory = [];
+		}
+		this.quizHistory.push({
+			score,
+			numQuestions,
+			category,
+			difficulty,
+			type,
+			date,
+		});
+		localStorage.setItem(
+			`user_${this.username}`,
+			JSON.stringify(this.quizHistory)
+		);
+	}
+
+	static getStoredUsername() {
+		return localStorage.getItem("currentUsername");
+	}
+
+	static setStoredUsername(username) {
+		localStorage.setItem("currentUsername", username);
+	}
+
+	static clearStoredUsername() {
+		localStorage.removeItem("currentUsername");
 	}
 }
 
@@ -171,8 +362,8 @@ class Quiz {
 					this.displayQuestion();
 					this.updateActiveNavLink();
 				} else {
-					// It's now "View Scores" - implement this functionality
-					console.log("View Scores clicked");
+					// It's now "View Scores" - go to profile page
+					displayUserProfile();
 				}
 			}
 			if (e.target == action2) {
@@ -180,8 +371,8 @@ class Quiz {
 				if (e.target.classList.contains("submit-quiz")) {
 					this.submitQuiz();
 				} else {
-					// It's now "Return Home"
-					location.reload();
+					// It's now "Return Home" - return to api form
+					this.returnHome();
 				}
 			}
 		});
@@ -189,7 +380,26 @@ class Quiz {
 		const saveUsernameBtn = document.querySelector(".username-btn");
 		saveUsernameBtn.addEventListener("click", (e) => {
 			const usernameInput = document.querySelector(".username-input");
-			const username = usernameInput.value;
+			const username = usernameInput.value.trim();
+			if (username) {
+				this.user = new User(username);
+				User.setStoredUsername(username);
+				// Save the quiz result
+				this.user.saveQuizResult(
+					this.score,
+					this.numQuestions,
+					this.category,
+					this.difficulty,
+					this.type,
+					this.start_time
+				);
+				// Hide username input and show confirmation
+				usernameInput.classList.add("hidden");
+				saveUsernameBtn.classList.add("hidden");
+				document.querySelector(
+					".username-prompt"
+				).textContent = `Score saved for ${username}!`;
+			}
 		});
 	}
 
@@ -409,20 +619,83 @@ class Quiz {
 
 	displayResults() {
 		this.initInputListener();
-		toggleHidden([".question-card", ".result-card", ".question-nav"]);
-		if (this.user !== undefined) {
-			console.log("welcome back");
-		} else {
-			toggleHidden([".username-input", ".username-prompt"]);
-		}
+		toggleHidden([
+			".question-card",
+			".result-card",
+			".question-nav",
+			".quiz-actions",
+		]);
+
 		const scoreH1 = document.querySelector(".quiz-score");
 		scoreH1.textContent = `Score: ${this.score}%`;
+
+		// Check if user is already logged in
+		if (this.user !== undefined) {
+			console.log("welcome back");
+			// Auto-save the score for logged-in users
+			this.user.saveQuizResult(
+				this.score,
+				this.numQuestions,
+				this.category,
+				this.difficulty,
+				this.type,
+				this.start_time
+			);
+			document.querySelector(
+				".username-prompt"
+			).textContent = `Score saved for ${this.user.username}!`;
+			document.querySelector(".username-prompt").classList.remove("hidden");
+		} else {
+			// Show username input for new users
+			toggleHidden([".username-input", ".username-prompt", ".username-btn"]);
+		}
+
 		const action1 = document.querySelector(".action-1");
-		action1.classList.toggle("add-question");
+		action1.classList.remove("add-question");
+		action1.classList.add("view-scores");
 		const action2 = document.querySelector(".action-2");
-		action2.classList.toggle("submit-quiz");
+		action2.classList.remove("submit-quiz");
+		action2.classList.add("return-home");
 		action1.textContent = "View Scores";
 		action2.textContent = "Return Home";
+	}
+
+	returnHome() {
+		// Hide result card and quiz actions
+		const resultCard = document.querySelector(".result-card");
+		const quizActions = document.querySelector(".quiz-actions");
+		const apiForm = document.querySelector(".api-form");
+		const usernameInput = document.querySelector(".username-input");
+		const usernameBtn = document.querySelector(".username-btn");
+		const usernamePrompt = document.querySelector(".username-prompt");
+
+		resultCard.classList.add("hidden");
+		quizActions.classList.add("hidden");
+		apiForm.classList.remove("hidden");
+
+		// Reset username input visibility
+		if (!usernameInput.classList.contains("hidden")) {
+			usernameInput.classList.add("hidden");
+		}
+		if (!usernameBtn.classList.contains("hidden")) {
+			usernameBtn.classList.add("hidden");
+		}
+		if (!usernamePrompt.classList.contains("hidden")) {
+			usernamePrompt.classList.add("hidden");
+		}
+
+		// Reset button states
+		const action1 = document.querySelector(".action-1");
+		const action2 = document.querySelector(".action-2");
+		action1.classList.remove("view-scores");
+		action1.classList.add("add-question");
+		action2.classList.remove("return-home");
+		action2.classList.add("submit-quiz");
+		action1.textContent = "Add Question";
+		action2.textContent = "Submit Quiz";
+
+		// Reset quiz actions visibility for next quiz
+		quizActions.classList.add("hidden");
 	}
 
 	allQuestionsAnswered() {
